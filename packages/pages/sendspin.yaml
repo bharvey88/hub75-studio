@@ -76,19 +76,7 @@ sensor:
     id: sendspin_track_duration
 
 # Scroll speed comes from the shared "Scroll Speed" number in common/utils.yaml;
-# subscribe at boot so slider moves re-time the running scroll immediately.
-esphome:
-  on_boot:
-    - priority: -100.0
-      then:
-        - lambda: |-
-            id(shared_scroll_speed).add_on_state_callback([](float sp) {
-              uint32_t anim_ms = (uint32_t)(11000 - sp * 1000);
-              lv_obj_set_style_anim_time(id(sendspin_now_playing_label), anim_ms, LV_PART_MAIN);
-              // Force the running scroll animation to restart with the new speed
-              lv_label_set_long_mode(id(sendspin_now_playing_label), LV_LABEL_LONG_CLIP);
-              lv_label_set_long_mode(id(sendspin_now_playing_label), LV_LABEL_LONG_SCROLL_CIRCULAR);
-            });
+# the subscription lives in the esphome: on_boot block below.
 
 # Poll track progress while playing and drive the progress bar.
 # Runs regardless of which page is active so the bar is ready on page switch.
@@ -144,6 +132,14 @@ esphome:
   on_boot:
     - priority: -100
       then:
+        - lambda: |-
+            // Slider moves on the shared Scroll Speed re-time the running scroll
+            id(shared_scroll_speed).add_on_state_callback([](float sp) {
+              uint32_t anim_ms = (uint32_t)(11000 - sp * 1000);
+              lv_obj_set_style_anim_time(id(sendspin_now_playing_label), anim_ms, LV_PART_MAIN);
+              lv_label_set_long_mode(id(sendspin_now_playing_label), LV_LABEL_LONG_CLIP);
+              lv_label_set_long_mode(id(sendspin_now_playing_label), LV_LABEL_LONG_SCROLL_CIRCULAR);
+            });
         - lambda: |-
             id(sendspin_hub).add_metadata_update_callback(
               [](const auto &m) {
