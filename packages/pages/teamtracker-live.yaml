@@ -90,9 +90,18 @@ api:
         - lvgl.label.update:
             id: tt_home_score_lbl
             text: !lambda 'return to_string(opponent_score);'
-        - lvgl.label.update:
-            id: tt_game_status_lbl
-            text: !lambda 'return status_text;'
+        - lambda: |-
+            // Update the ticker only when its text changed: rewriting the label
+            // restarts the scroll animation, and pushes arrive every few seconds.
+            // Scale the animation time with the text length so the scroll speed
+            // stays constant (LVGL animates over a fixed TIME, not a fixed speed).
+            const char *cur = lv_label_get_text(id(tt_game_status_lbl));
+            if (cur == nullptr || status_text != cur) {
+              lv_label_set_text(id(tt_game_status_lbl), status_text.c_str());
+              uint32_t anim_ms = (uint32_t) (status_text.length() * 150);
+              if (anim_ms < 4000) anim_ms = 4000;
+              lv_obj_set_style_anim_time(id(tt_game_status_lbl), anim_ms, LV_PART_MAIN);
+            }
         - lvgl.label.update:
             id: tt_away_rec_lbl
             text: !lambda 'return team_record;'
@@ -132,6 +141,15 @@ api:
             } else {
               lv_obj_clear_flag(id(tt_game_container), LV_OBJ_FLAG_HIDDEN);
               lv_obj_add_flag(id(tt_no_game_container), LV_OBJ_FLAG_HIDDEN);
+            }
+            // Records are pre/post-game info; hide them while the game is live
+            // so the row under the scores is just the timeout pips.
+            if (game_state == "IN") {
+              lv_obj_add_flag(id(tt_away_rec_lbl), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(tt_home_rec_lbl), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_clear_flag(id(tt_away_rec_lbl), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(tt_home_rec_lbl), LV_OBJ_FLAG_HIDDEN);
             }
         - if:
             condition:
