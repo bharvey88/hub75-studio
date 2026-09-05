@@ -237,26 +237,26 @@ lvgl:
 
               - obj:
                   id: tt_away_to1
-                  x: 45
-                  y: 45
+                  x: 12
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
               - obj:
                   id: tt_away_to2
-                  x: 52
-                  y: 45
+                  x: 19
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
               - obj:
                   id: tt_away_to3
-                  x: 59
-                  y: 45
+                  x: 26
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
 
@@ -290,26 +290,26 @@ lvgl:
 
               - obj:
                   id: tt_home_to1
-                  x: 65
-                  y: 45
+                  x: 96
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
               - obj:
                   id: tt_home_to2
-                  x: 72
-                  y: 45
+                  x: 103
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
               - obj:
                   id: tt_home_to3
-                  x: 79
-                  y: 45
+                  x: 110
+                  y: 46
                   width: 5
-                  height: 2
+                  height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
 
