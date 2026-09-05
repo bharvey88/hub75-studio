@@ -135,7 +135,7 @@ api:
               - script.execute: tt_hide_splash
         - lambda: |-
             // Toggle between the game layout and the "no game" layout
-            if (game_state == "NOT_FOUND" || game_state == "") {
+            if (game_state == "NOT_FOUND" || game_state == "BYE" || game_state == "") {
               lv_obj_add_flag(id(tt_game_container), LV_OBJ_FLAG_HIDDEN);
               lv_obj_clear_flag(id(tt_no_game_container), LV_OBJ_FLAG_HIDDEN);
             } else {
