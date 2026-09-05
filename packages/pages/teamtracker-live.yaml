@@ -57,28 +57,28 @@ api:
       variables:
         game_state: string
         team_abbr: string
-        team_score: string
+        team_score: int
         opponent_abbr: string
-        opponent_score: string
+        opponent_score: int
         status_text: string
         team_logo: string
         opponent_logo: string
       then:
         - lvgl.label.update:
             id: tt_away_team_lbl
-            text: !lambda 'return team_abbr.c_str();'
+            text: !lambda 'return team_abbr;'
         - lvgl.label.update:
             id: tt_away_score_lbl
-            text: !lambda 'return team_score.c_str();'
+            text: !lambda 'return to_string(team_score);'
         - lvgl.label.update:
             id: tt_home_team_lbl
-            text: !lambda 'return opponent_abbr.c_str();'
+            text: !lambda 'return opponent_abbr;'
         - lvgl.label.update:
             id: tt_home_score_lbl
-            text: !lambda 'return opponent_score.c_str();'
+            text: !lambda 'return to_string(opponent_score);'
         - lvgl.label.update:
             id: tt_game_status_lbl
-            text: !lambda 'return status_text.c_str();'
+            text: !lambda 'return status_text;'
         - lambda: |-
             // Toggle between the game layout and the "no game" layout
             if (game_state == "NOT_FOUND" || game_state == "") {
