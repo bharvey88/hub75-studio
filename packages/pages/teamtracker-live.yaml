@@ -1,0 +1,219 @@
+# © Copyright 2025 Stuart Parmenter
+# SPDX-License-Identifier: MIT
+#
+# Team Tracker Live (LVGL + DDP) - zero-config scoreboard for 128x64 (two
+# 64x64 panels side by side). Unlike teamtracker.yaml, this page binds NO
+# Home Assistant entities at compile time. Home Assistant pushes game data
+# to the device through the `teamtracker_update` action (see the Game Day
+# blueprint at https://github.com/bharvey88/gameday-matrix). Flash once,
+# pick your team in HA, change teams without reflashing.
+#
+# No required vars.
+
+lvgl_page_manager:
+  pages:
+    - page: teamtracker_live
+      friendly_name: "Team Tracker"
+
+# DDP sink + canvas binding for team logos
+ddp_canvas:
+  - id: tt_stream_away
+    canvas: tt_away_logo_canvas
+    back_buffers: 0
+  - id: tt_stream_home
+    canvas: tt_home_logo_canvas
+    back_buffers: 0
+
+# WebSocket control for logo streaming
+media_proxy_control:
+  id: mp_control
+  outputs:
+    - id: tt_output_away
+      stream: tt_stream_away
+      src: ""
+      loop: false
+      format: rgb565
+    - id: tt_output_home
+      stream: tt_stream_home
+      src: ""
+      loop: false
+      format: rgb565
+
+# Remember the last logo URLs so a data push only restarts a logo stream
+# when the logo actually changed (game data arrives every few seconds).
+globals:
+  - id: tt_last_team_logo
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: tt_last_opponent_logo
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+
+api:
+  actions:
+    - action: teamtracker_update
+      variables:
+        game_state: string
+        team_abbr: string
+        team_score: string
+        opponent_abbr: string
+        opponent_score: string
+        status_text: string
+        team_logo: string
+        opponent_logo: string
+      then:
+        - lvgl.label.update:
+            id: tt_away_team_lbl
+            text: !lambda 'return team_abbr.c_str();'
+        - lvgl.label.update:
+            id: tt_away_score_lbl
+            text: !lambda 'return team_score.c_str();'
+        - lvgl.label.update:
+            id: tt_home_team_lbl
+            text: !lambda 'return opponent_abbr.c_str();'
+        - lvgl.label.update:
+            id: tt_home_score_lbl
+            text: !lambda 'return opponent_score.c_str();'
+        - lvgl.label.update:
+            id: tt_game_status_lbl
+            text: !lambda 'return status_text.c_str();'
+        - lambda: |-
+            // Toggle between the game layout and the "no game" layout
+            if (game_state == "NOT_FOUND" || game_state == "") {
+              lv_obj_add_flag(id(tt_game_container), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(tt_no_game_container), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_clear_flag(id(tt_game_container), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(tt_no_game_container), LV_OBJ_FLAG_HIDDEN);
+            }
+        - if:
+            condition:
+              lambda: 'return !team_logo.empty() && team_logo != "None" && team_logo != id(tt_last_team_logo);'
+            then:
+              - lambda: 'id(tt_last_team_logo) = team_logo;'
+              - media_proxy_control.set_source:
+                  id: tt_output_away
+                  src: !lambda 'return team_logo;'
+        - if:
+            condition:
+              lambda: 'return !opponent_logo.empty() && opponent_logo != "None" && opponent_logo != id(tt_last_opponent_logo);'
+            then:
+              - lambda: 'id(tt_last_opponent_logo) = opponent_logo;'
+              - media_proxy_control.set_source:
+                  id: tt_output_home
+                  src: !lambda 'return opponent_logo;'
+
+lvgl:
+  style_definitions:
+    - id: tt_st_team_text
+      text_font: spleen_12
+      text_opa: 90%
+    - id: tt_st_score_text
+      text_font: spleen_16
+      text_opa: 100%
+    - id: tt_st_status_text
+      text_opa: 75%
+
+  pages:
+    - id: teamtracker_live
+      bg_color: 0x000000
+      widgets:
+        # Container for normal game display
+        - obj:
+            id: tt_game_container
+            x: 0
+            y: 0
+            width: 128
+            height: 64
+            widgets:
+              # Your team's logo (far left)
+              - canvas:
+                  id: tt_away_logo_canvas
+                  x: 2
+                  y: 2
+                  width: 40
+                  height: 40
+
+              # Opponent logo (far right)
+              - canvas:
+                  id: tt_home_logo_canvas
+                  x: 86
+                  y: 2
+                  width: 40
+                  height: 40
+
+              # Your team's abbreviation and score (inner left)
+              - label:
+                  id: tt_away_team_lbl
+                  x: 44
+                  y: 6
+                  width: 20
+                  text_align: CENTER
+                  text: "----"
+                  styles: ["tt_st_team_text"]
+
+              - label:
+                  id: tt_away_score_lbl
+                  x: 44
+                  y: 24
+                  width: 20
+                  text_align: CENTER
+                  text: "-"
+                  styles: ["tt_st_score_text"]
+
+              # Opponent abbreviation and score (inner right)
+              - label:
+                  id: tt_home_team_lbl
+                  x: 64
+                  y: 6
+                  width: 20
+                  text_align: CENTER
+                  text: "----"
+                  styles: ["tt_st_team_text"]
+
+              - label:
+                  id: tt_home_score_lbl
+                  x: 64
+                  y: 24
+                  width: 20
+                  text_align: CENTER
+                  text: "-"
+                  styles: ["tt_st_score_text"]
+
+              # Game status (bottom, full width)
+              - label:
+                  id: tt_game_status_lbl
+                  x: 0
+                  y: 54
+                  width: 128
+                  text_align: CENTER
+                  long_mode: SCROLL_CIRCULAR
+                  text: "Waiting for data"
+                  styles: ["tt_st_status_text"]
+
+        # Container for "no game" display
+        - obj:
+            id: tt_no_game_container
+            x: 0
+            y: 0
+            width: 128
+            height: 64
+            hidden: true
+            widgets:
+              - label:
+                  id: tt_no_game_msg_lbl
+                  x: 0
+                  y: 26
+                  width: 128
+                  text_align: CENTER
+                  long_mode: WRAP
+                  text: "Nothing Upcoming"
+                  styles: ["tt_st_team_text"]
+
+      on_load:
+        then:
+          - lambda: |-
+              id(tt_output_away).start();
+              id(tt_output_home).start();
