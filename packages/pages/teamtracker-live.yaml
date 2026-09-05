@@ -367,5 +367,10 @@ lvgl:
       on_load:
         then:
           - lambda: |-
+              // Forget cached logo URLs so revisiting the page re-pulls both
+              // logos; a partially streamed logo can be fixed by flipping the
+              // page away and back.
+              id(tt_last_team_logo) = "";
+              id(tt_last_opponent_logo) = "";
               id(tt_output_away).start();
               id(tt_output_home).start();
