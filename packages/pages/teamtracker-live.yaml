@@ -111,13 +111,14 @@ api:
         - lvgl.label.update:
             id: tt_away_to_lbl
             text: !lambda |-
+              // Timeouts remaining as scoreboard-style dashes
               int n = team_timeouts < 0 ? 0 : (team_timeouts > 3 ? 3 : team_timeouts);
-              return std::string(n, '.');
+              return std::string(n, '-');
         - lvgl.label.update:
             id: tt_home_to_lbl
             text: !lambda |-
               int n = opponent_timeouts < 0 ? 0 : (opponent_timeouts > 3 ? 3 : opponent_timeouts);
-              return std::string(n, '.');
+              return std::string(n, '-');
         - lambda: |-
             // Possession: the team with the ball gets a gold abbreviation
             lv_color_t active = lv_color_hex(0xFFD000);
