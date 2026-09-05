@@ -1,12 +1,13 @@
 # © Copyright 2025 Stuart Parmenter
 # SPDX-License-Identifier: MIT
 #
-# Team Tracker Live (LVGL + DDP) - zero-config scoreboard for 128x64 (two
-# 64x64 panels side by side). Unlike teamtracker.yaml, this page binds NO
-# Home Assistant entities at compile time. Home Assistant pushes game data
-# to the device through the `teamtracker_update` action (see the Game Day
-# blueprint at https://github.com/bharvey88/gameday-matrix). Flash once,
-# pick your team in HA, change teams without reflashing.
+# Team Tracker Live (LVGL + DDP) - zero-config scoreboard that adapts to the
+# display size at runtime. One file for every panel arrangement: on a 64-wide
+# display it stacks logos over scores; at 128 wide and up it spreads logos to
+# the edges with big scores, records, and timeout pips in the middle.
+# Home Assistant pushes game data through the `teamtracker_update` action
+# (see the Game Day blueprint at https://github.com/bharvey88/gameday-matrix).
+# Flash once, pick your team in HA, change teams without reflashing.
 #
 # No required vars.
 
@@ -58,6 +59,82 @@ script:
       - delay: 4s
       - lambda: 'lv_obj_add_flag(id(tt_splash), LV_OBJ_FLAG_HIDDEN);'
 
+  - id: tt_apply_layout
+    then:
+      - lambda: |-
+          // Measure the display and lay the scoreboard out to fit it.
+          // Everything is positioned here rather than in the widget config so
+          // one page file serves 64x64, 128x64, and wider chains alike.
+          const int W = lv_disp_get_hor_res(lv_disp_get_default());
+          const bool wide = W >= 128;
+          lv_obj_set_size(id(tt_game_container), W, 64);
+          lv_obj_set_size(id(tt_no_game_container), W, 64);
+          lv_obj_set_size(id(tt_splash), W, 64);
+          lv_obj_set_width(id(tt_splash_lbl), W);
+          lv_obj_set_width(id(tt_no_game_msg_lbl), W);
+          lv_obj_set_width(id(tt_game_status_lbl), W);
+          lv_obj_t *abars[3] = {id(tt_away_to1), id(tt_away_to2), id(tt_away_to3)};
+          lv_obj_t *hbars[3] = {id(tt_home_to1), id(tt_home_to2), id(tt_home_to3)};
+          if (wide) {
+            // Logos at the far edges, score columns in the middle
+            const int colw = W / 2 - 36;
+            lv_obj_set_pos(id(tt_away_logo_canvas), 2, 4);
+            lv_obj_set_pos(id(tt_home_logo_canvas), W - 34, 4);
+            lv_obj_set_style_text_font(id(tt_away_team_lbl), id(spleen_12), 0);
+            lv_obj_set_style_text_font(id(tt_home_team_lbl), id(spleen_12), 0);
+            lv_obj_set_style_text_font(id(tt_away_score_lbl), id(spleen_16), 0);
+            lv_obj_set_style_text_font(id(tt_home_score_lbl), id(spleen_16), 0);
+            lv_obj_set_pos(id(tt_away_team_lbl), 36, 4);
+            lv_obj_set_width(id(tt_away_team_lbl), colw);
+            lv_obj_set_pos(id(tt_home_team_lbl), W / 2, 4);
+            lv_obj_set_width(id(tt_home_team_lbl), colw);
+            lv_obj_set_pos(id(tt_away_score_lbl), 36, 18);
+            lv_obj_set_width(id(tt_away_score_lbl), colw);
+            lv_obj_set_pos(id(tt_home_score_lbl), W / 2, 18);
+            lv_obj_set_width(id(tt_home_score_lbl), colw);
+            lv_obj_set_pos(id(tt_away_rec_lbl), 36, 36);
+            lv_obj_set_width(id(tt_away_rec_lbl), colw);
+            lv_obj_set_pos(id(tt_home_rec_lbl), W / 2, 36);
+            lv_obj_set_width(id(tt_home_rec_lbl), colw);
+            // Timeout pips centered under each logo
+            const int acx = 18, hcx = W - 18;
+            for (int i = 0; i < 3; i++) {
+              lv_obj_clear_flag(abars[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(hbars[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_set_pos(abars[i], acx - 9 + i * 7, 46);
+              lv_obj_set_pos(hbars[i], hcx - 9 + i * 7, 46);
+            }
+            lv_obj_set_pos(id(tt_game_status_lbl), 0, 54);
+            lv_obj_set_style_text_font(id(tt_splash_lbl), id(spleen_16), 0);
+            lv_obj_set_pos(id(tt_splash_lbl), 0, 16);
+          } else {
+            // Single panel: logos side by side, everything stacked beneath
+            lv_obj_set_pos(id(tt_away_logo_canvas), 0, 0);
+            lv_obj_set_pos(id(tt_home_logo_canvas), W - 32, 0);
+            lv_obj_set_style_text_font(id(tt_away_team_lbl), id(spleen_8), 0);
+            lv_obj_set_style_text_font(id(tt_home_team_lbl), id(spleen_8), 0);
+            lv_obj_set_style_text_font(id(tt_away_score_lbl), id(spleen_12), 0);
+            lv_obj_set_style_text_font(id(tt_home_score_lbl), id(spleen_12), 0);
+            lv_obj_set_pos(id(tt_away_team_lbl), 0, 33);
+            lv_obj_set_width(id(tt_away_team_lbl), W / 2);
+            lv_obj_set_pos(id(tt_home_team_lbl), W / 2, 33);
+            lv_obj_set_width(id(tt_home_team_lbl), W / 2);
+            lv_obj_set_pos(id(tt_away_score_lbl), 0, 42);
+            lv_obj_set_width(id(tt_away_score_lbl), W / 2);
+            lv_obj_set_pos(id(tt_home_score_lbl), W / 2, 42);
+            lv_obj_set_width(id(tt_home_score_lbl), W / 2);
+            // No room for records or pips on a single panel
+            lv_obj_add_flag(id(tt_away_rec_lbl), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(tt_home_rec_lbl), LV_OBJ_FLAG_HIDDEN);
+            for (int i = 0; i < 3; i++) {
+              lv_obj_add_flag(abars[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(hbars[i], LV_OBJ_FLAG_HIDDEN);
+            }
+            lv_obj_set_pos(id(tt_game_status_lbl), 0, 55);
+            lv_obj_set_style_text_font(id(tt_splash_lbl), id(spleen_12), 0);
+            lv_obj_set_pos(id(tt_splash_lbl), 0, 18);
+          }
+
 api:
   actions:
     - action: teamtracker_update
@@ -90,6 +167,12 @@ api:
         - lvgl.label.update:
             id: tt_home_score_lbl
             text: !lambda 'return to_string(opponent_score);'
+        - lvgl.label.update:
+            id: tt_away_rec_lbl
+            text: !lambda 'return team_record;'
+        - lvgl.label.update:
+            id: tt_home_rec_lbl
+            text: !lambda 'return opponent_record;'
         - lambda: |-
             // Update the ticker only when its text changed: rewriting the label
             // restarts the scroll animation, and pushes arrive every few seconds.
@@ -102,12 +185,6 @@ api:
               if (anim_ms < 4000) anim_ms = 4000;
               lv_obj_set_style_anim_time(id(tt_game_status_lbl), anim_ms, LV_PART_MAIN);
             }
-        - lvgl.label.update:
-            id: tt_away_rec_lbl
-            text: !lambda 'return team_record;'
-        - lvgl.label.update:
-            id: tt_home_rec_lbl
-            text: !lambda 'return opponent_record;'
         - lambda: |-
             // Timeout pips: lit bar = timeout remaining, dim bar = used
             int a = team_timeouts < 0 ? 0 : (team_timeouts > 3 ? 3 : team_timeouts);
@@ -124,15 +201,6 @@ api:
             lv_color_t idle = lv_color_hex(0xFFFFFF);
             lv_obj_set_style_text_color(id(tt_away_team_lbl), possession == 1 ? active : idle, 0);
             lv_obj_set_style_text_color(id(tt_home_team_lbl), possession == 2 ? active : idle, 0);
-        - if:
-            condition:
-              lambda: 'return !splash_text.empty();'
-            then:
-              - lambda: |-
-                  lv_label_set_text(id(tt_splash_lbl), splash_text.c_str());
-                  lv_obj_set_style_bg_color(id(tt_splash), lv_color_hex((uint32_t) splash_color), 0);
-                  lv_obj_clear_flag(id(tt_splash), LV_OBJ_FLAG_HIDDEN);
-              - script.execute: tt_hide_splash
         - lambda: |-
             // Toggle between the game layout and the "no game" layout
             if (game_state == "NOT_FOUND" || game_state == "BYE" || game_state == "") {
@@ -143,8 +211,9 @@ api:
               lv_obj_add_flag(id(tt_no_game_container), LV_OBJ_FLAG_HIDDEN);
             }
             // Records are pre/post-game info; hide them while the game is live
-            // so the row under the scores is just the timeout pips.
-            if (game_state == "IN") {
+            // (the layout also hides them entirely on narrow displays).
+            const int W = lv_disp_get_hor_res(lv_disp_get_default());
+            if (game_state == "IN" || W < 128) {
               lv_obj_add_flag(id(tt_away_rec_lbl), LV_OBJ_FLAG_HIDDEN);
               lv_obj_add_flag(id(tt_home_rec_lbl), LV_OBJ_FLAG_HIDDEN);
             } else {
@@ -167,14 +236,21 @@ api:
               - media_proxy_control.set_source:
                   id: tt_output_home
                   src: !lambda 'return opponent_logo;'
+        - if:
+            condition:
+              lambda: 'return !splash_text.empty();'
+            then:
+              - lambda: |-
+                  lv_label_set_text(id(tt_splash_lbl), splash_text.c_str());
+                  lv_obj_set_style_bg_color(id(tt_splash), lv_color_hex((uint32_t) splash_color), 0);
+                  lv_obj_clear_flag(id(tt_splash), LV_OBJ_FLAG_HIDDEN);
+              - script.execute: tt_hide_splash
 
 lvgl:
   style_definitions:
     - id: tt_st_team_text
-      text_font: spleen_12
       text_opa: 90%
     - id: tt_st_score_text
-      text_font: spleen_16
       text_opa: 100%
     - id: tt_st_status_text
       text_opa: 75%
@@ -183,61 +259,86 @@ lvgl:
     - id: teamtracker_live
       bg_color: 0x000000
       widgets:
-        # Container for normal game display
+        # Container for normal game display. All positions and fonts are
+        # applied at runtime by tt_apply_layout; the values here are placeholders.
         - obj:
             id: tt_game_container
             x: 0
             y: 0
-            width: 128
+            width: 64
             height: 64
             widgets:
-              # Your team's logo (far left)
               - canvas:
                   id: tt_away_logo_canvas
-                  x: 2
-                  y: 2
-                  width: 40
-                  height: 40
+                  x: 0
+                  y: 0
+                  width: 32
+                  height: 32
 
-              # Opponent logo (far right)
               - canvas:
                   id: tt_home_logo_canvas
-                  x: 86
-                  y: 2
-                  width: 40
-                  height: 40
+                  x: 32
+                  y: 0
+                  width: 32
+                  height: 32
 
-              # Your team's abbreviation, score, record, timeouts (inner left)
               - label:
                   id: tt_away_team_lbl
-                  x: 44
-                  y: 4
-                  width: 20
+                  x: 0
+                  y: 33
+                  width: 32
+                  text_align: CENTER
+                  text: "----"
+                  styles: ["tt_st_team_text"]
+
+              - label:
+                  id: tt_home_team_lbl
+                  x: 32
+                  y: 33
+                  width: 32
                   text_align: CENTER
                   text: "----"
                   styles: ["tt_st_team_text"]
 
               - label:
                   id: tt_away_score_lbl
-                  x: 44
-                  y: 18
-                  width: 20
+                  x: 0
+                  y: 42
+                  width: 32
+                  text_align: CENTER
+                  text: "-"
+                  styles: ["tt_st_score_text"]
+
+              - label:
+                  id: tt_home_score_lbl
+                  x: 32
+                  y: 42
+                  width: 32
                   text_align: CENTER
                   text: "-"
                   styles: ["tt_st_score_text"]
 
               - label:
                   id: tt_away_rec_lbl
-                  x: 44
+                  x: 0
                   y: 36
-                  width: 20
+                  width: 32
+                  text_align: CENTER
+                  text: ""
+                  styles: ["tt_st_status_text"]
+
+              - label:
+                  id: tt_home_rec_lbl
+                  x: 32
+                  y: 36
+                  width: 32
                   text_align: CENTER
                   text: ""
                   styles: ["tt_st_status_text"]
 
               - obj:
                   id: tt_away_to1
-                  x: 12
+                  x: 0
                   y: 46
                   width: 5
                   height: 3
@@ -245,7 +346,7 @@ lvgl:
                   bg_color: 0x202020
               - obj:
                   id: tt_away_to2
-                  x: 19
+                  x: 7
                   y: 46
                   width: 5
                   height: 3
@@ -253,44 +354,15 @@ lvgl:
                   bg_color: 0x202020
               - obj:
                   id: tt_away_to3
-                  x: 26
+                  x: 14
                   y: 46
                   width: 5
                   height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
-
-              # Opponent abbreviation, score, record, timeouts (inner right)
-              - label:
-                  id: tt_home_team_lbl
-                  x: 64
-                  y: 4
-                  width: 20
-                  text_align: CENTER
-                  text: "----"
-                  styles: ["tt_st_team_text"]
-
-              - label:
-                  id: tt_home_score_lbl
-                  x: 64
-                  y: 18
-                  width: 20
-                  text_align: CENTER
-                  text: "-"
-                  styles: ["tt_st_score_text"]
-
-              - label:
-                  id: tt_home_rec_lbl
-                  x: 64
-                  y: 36
-                  width: 20
-                  text_align: CENTER
-                  text: ""
-                  styles: ["tt_st_status_text"]
-
               - obj:
                   id: tt_home_to1
-                  x: 96
+                  x: 44
                   y: 46
                   width: 5
                   height: 3
@@ -298,7 +370,7 @@ lvgl:
                   bg_color: 0x202020
               - obj:
                   id: tt_home_to2
-                  x: 103
+                  x: 51
                   y: 46
                   width: 5
                   height: 3
@@ -306,19 +378,18 @@ lvgl:
                   bg_color: 0x202020
               - obj:
                   id: tt_home_to3
-                  x: 110
+                  x: 58
                   y: 46
                   width: 5
                   height: 3
                   bg_opa: COVER
                   bg_color: 0x202020
 
-              # Game status (bottom, full width)
               - label:
                   id: tt_game_status_lbl
                   x: 0
-                  y: 54
-                  width: 128
+                  y: 55
+                  width: 64
                   text_align: CENTER
                   long_mode: SCROLL_CIRCULAR
                   text: "Waiting for data"
@@ -329,7 +400,7 @@ lvgl:
             id: tt_splash
             x: 0
             y: 0
-            width: 128
+            width: 64
             height: 64
             hidden: true
             bg_opa: COVER
@@ -339,7 +410,7 @@ lvgl:
                   id: tt_splash_lbl
                   x: 0
                   y: 16
-                  width: 128
+                  width: 64
                   text_align: CENTER
                   long_mode: WRAP
                   text: ""
@@ -350,7 +421,7 @@ lvgl:
             id: tt_no_game_container
             x: 0
             y: 0
-            width: 128
+            width: 64
             height: 64
             hidden: true
             widgets:
@@ -358,7 +429,7 @@ lvgl:
                   id: tt_no_game_msg_lbl
                   x: 0
                   y: 26
-                  width: 128
+                  width: 64
                   text_align: CENTER
                   long_mode: WRAP
                   text: "Nothing Upcoming"
@@ -366,6 +437,7 @@ lvgl:
 
       on_load:
         then:
+          - script.execute: tt_apply_layout
           - lambda: |-
               // Forget cached logo URLs so revisiting the page re-pulls both
               // logos; a partially streamed logo can be fixed by flipping the
