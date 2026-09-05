@@ -338,9 +338,10 @@ lvgl:
               - label:
                   id: tt_splash_lbl
                   x: 0
-                  y: 24
+                  y: 16
                   width: 128
                   text_align: CENTER
+                  long_mode: WRAP
                   text: ""
                   styles: ["tt_st_score_text"]
 
